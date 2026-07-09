@@ -405,6 +405,7 @@ class Player {
     takeDamage(amount) {
         this.health -= amount;
         if (amount > 0) {
+            floatingTexts.push(new FloatingText(this.x, this.y - 20, `-${amount}`, '#f44336', 20));
             playHitSound();
             applyScreenShake(amount > 4 ? 12 : 5);
             for(let i = 0; i < 5; i++) particles.push(new Particle(this.x, this.y, this.color));
@@ -727,38 +728,67 @@ let activeBoss = null;
 let activeSunBoss = null;
 let bossDefeatedThisLevel = false;
 
+let floatingTexts = [];
+
+class FloatingText {
+    constructor(x, y, text, color, size = 16) {
+        this.x = x + (Math.random() - 0.5) * 20;
+        this.y = y + (Math.random() - 0.5) * 20;
+        this.text = text;
+        this.color = color;
+        this.size = size;
+        this.life = 1.0;
+        this.vy = -1 - Math.random(); 
+    }
+
+    update() {
+        this.y += this.vy;
+        this.life -= 0.02;
+        
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.font = `bold ${this.size}px Arial`;
+        ctx.fillStyle = this.color;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.strokeText(this.text, this.x, this.y);
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
+
 const upgradesList = [
     { 
         name: "Rapid Fire", 
         desc: "Decreases shoot cooldown (Capped).", 
-        condition: () => player.fireRate > 2, // Hard cap so we don't shoot every 0 frames
+        condition: () => player.fireRate > 2, 
         apply: () => player.fireRate = Math.max(2, player.fireRate - 1) 
     },
     { 
         name: "Spread Shot", 
         desc: "+2 Projectiles per shot (Cap: 11).", 
-        condition: () => player.spreadCount < 11, // Prevents game crashing from 1000 bullets
+        condition: () => player.spreadCount < 11, 
         apply: () => player.spreadCount += 2 
     },
     { 
         name: "Heavy Rounds", 
         desc: "Infinite Damage boost & slightly larger bullets.", 
-        condition: () => true, // Infinite upgrade
+        condition: () => true, 
         apply: () => { 
             player.projectileDamage += 2.5; 
-            if (player.projectileSize < 12) player.projectileSize += 1; // Cap size, not damage
+            if (player.projectileSize < 12) player.projectileSize += 1; 
         } 
     },
     { 
         name: "Agility", 
         desc: "Increases movement speed (Capped).", 
-        condition: () => player.maxSpeed < 13, // Prevent clipping out of bounds
+        condition: () => player.maxSpeed < 13, 
         apply: () => player.maxSpeed += 0.5 
     },
     { 
         name: "Vitality", 
         desc: "Max HP +20 and fully heals.", 
-        condition: () => true, // Infinite upgrade
+        condition: () => true, 
         apply: () => { player.maxHealth += 20; player.health = player.maxHealth; player.takeDamage(0); } 
     }
 ];
@@ -845,6 +875,7 @@ function init() {
     particles = [];
     shockwaves = [];
     distantEvents = [];
+    floatingTexts = [];
     activeBoss = null;
     activeSunBoss = null;
     bossDefeatedThisLevel = false;
@@ -877,11 +908,14 @@ function updateHUD() {
 }
 
 function addExperience(amount) {
+    if (amount > 0) {
+        floatingTexts.push(new FloatingText(player.x, player.y - 40, `+${amount} XP`, '#00bcd4', 16));
+    }
+    
     exp += amount;
     if (exp >= expToNextLevel) {
         exp -= expToNextLevel;
         level++;
-        // Replaced exponential scaling (* 1.2) with linear scaling (+ 15) for level 1000 achievability
         expToNextLevel = 10 + (level * 15); 
         bossDefeatedThisLevel = false;
         triggerLevelUp();
@@ -895,10 +929,8 @@ function triggerLevelUp() {
     playLevelUpSound();
     upgradeOptionsContainer.innerHTML = '';
     
-    // Filter upgrades based on their caps
     let availableUpgrades = upgradesList.filter(u => u.condition());
     
-    // Fallback if we hit every single cap (just give Vitality & Damage)
     if (availableUpgrades.length === 0) {
         availableUpgrades = [upgradesList[2], upgradesList[4]]; 
     }
@@ -1113,6 +1145,7 @@ function animate() {
         if (activeBoss) {
             if (Math.hypot(p.x - activeBoss.x, p.y - activeBoss.y) < activeBoss.radius) {
                 activeBoss.health -= p.damage;
+                floatingTexts.push(new FloatingText(p.x, p.y, p.damage, '#ffffff', 18));
                 createExplosion(p.x, p.y, p.color, 3);
                 hit = true;
                 
@@ -1150,6 +1183,7 @@ function animate() {
 
                 if (Math.abs(diff) < Math.PI / 4) {
                     activeSunBoss.health -= p.damage;
+                    floatingTexts.push(new FloatingText(p.x, p.y, p.damage, '#ffffff', 18));
                     activeSunBoss.flashTimer = 5;
                     createExplosion(p.x, p.y, p.color, 4);
                     hit = true;
@@ -1225,6 +1259,7 @@ function animate() {
             if (distToProj - enemy.radius - projectile.radius < 0) {
                 projectiles.splice(j, 1);
                 enemy.health -= projectile.damage;
+                floatingTexts.push(new FloatingText(projectile.x, projectile.y, projectile.damage, '#ffffff', 16));
                 createExplosion(projectile.x, projectile.y, projectile.color, 4);
                 
                 if (enemy.health <= 0) {
@@ -1235,7 +1270,7 @@ function animate() {
                     
                     enemies.splice(i, 1);
                     score += enemy.scoreValue;
-                    addExperience(enemy.expValue); // Now uses scaling exp value!
+                    addExperience(enemy.expValue); 
                 }
                 break;
             }
@@ -1250,9 +1285,15 @@ function animate() {
     frames++;
 
     if (!activeBoss) {
-        // Capped spawn rate to prevent freezing, max entities is hard-limited to 120
         let spawnRate = Math.max(2, 60 - Math.floor(frames / 120) - Math.floor(level / 10)); 
         if (frames % spawnRate === 0 && enemies.length < 120) spawnEnemy();
+    }
+
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        floatingTexts[i].update();
+        if (floatingTexts[i].life <= 0) {
+            floatingTexts.splice(i, 1);
+        }
     }
 
     ctx.restore();
