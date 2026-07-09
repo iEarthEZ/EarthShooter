@@ -34,6 +34,7 @@ let isPaused = false;
 let stars = [];
 let audioCtx = null;
 let screenShake = 0;
+let chronoFluxTimer = 0; // Global tracking for Chrono Flux slow effect
 
 const keys = { w: false, a: false, s: false, d: false };
 const mouse = { x: canvas.width / 2, y: canvas.height / 2, isDown: false, worldX: 0, worldY: 0 };
@@ -336,6 +337,9 @@ class Player {
         this.projectileSize = 5;
         this.projectileDamage = 1;
         this.spreadCount = 1;
+        this.damageReduction = 0; 
+        this.chronoFluxChance = 0; // Property for Chrono Flux upgrade
+        this.expMultiplier = 1.0;  // Property for Void Harvest upgrade
     }
 
     draw() {
@@ -403,12 +407,22 @@ class Player {
     }
 
     takeDamage(amount) {
+        if (this.damageReduction && amount > 0) {
+            amount = Math.max(1, Math.round(amount * (1 - this.damageReduction)));
+        }
+
         this.health -= amount;
         if (amount > 0) {
             floatingTexts.push(new FloatingText(this.x, this.y - 20, `-${amount}`, '#f44336', 20));
             playHitSound();
             applyScreenShake(amount > 4 ? 12 : 5);
             for(let i = 0; i < 5; i++) particles.push(new Particle(this.x, this.y, this.color));
+
+            // Trigger Chrono Flux if chance check passes
+            if (this.chronoFluxChance > 0 && Math.random() < this.chronoFluxChance) {
+                chronoFluxTimer = 180; // Slow down enemies for 3 seconds (180 frames)
+                floatingTexts.push(new FloatingText(this.x, this.y - 50, "CHRONO FLUX ACTIVE", '#00ffff', 18));
+            }
         }
         const healthPercent = Math.max(0, (this.health / this.maxHealth) * 100);
         playerHealthBar.style.width = `${healthPercent}%`;
@@ -523,6 +537,7 @@ class SunBoss {
     }
 
     update() {
+        // Bosses remain unaffected by player space slowing fields
         this.spinTimer--;
         if (this.spinTimer <= 0) {
             this.spinSpeed = (Math.random() - 0.5) * 0.04; 
@@ -634,13 +649,12 @@ class Enemy {
         this.y = y;
         this.type = type;
         
-        // Enemies scale to prevent game breaking at lvl 1000
         if (type === 1) {
             this.radius = 28;
             this.color = '#9c27b0';
             this.speed = Math.random() * 0.8 + 0.6;
             this.maxHealth = 20 + Math.floor(level * 2);
-            this.expValue = 5 + Math.floor(level * 0.2); // Scaling EXP
+            this.expValue = 5 + Math.floor(level * 0.2); 
             this.scoreValue = 5 + Math.floor(level * 0.5);
             this.damage = 40 + Math.floor(level * 0.2);
         } else if (type === 2) {
@@ -652,6 +666,33 @@ class Enemy {
             this.scoreValue = 3 + Math.floor(level * 0.3);
             this.damage = 10 + Math.floor(level * 0.1);
             this.shootCooldown = Math.floor(Math.random() * 60) + 60;
+        } else if (type === 3) { 
+            this.radius = 12;
+            this.color = '#ff5722';
+            this.speed = Math.random() * 1.0 + 2.8; 
+            this.maxHealth = 2 + Math.floor(level * 0.4);
+            this.expValue = 4 + Math.floor(level * 0.15);
+            this.scoreValue = 4 + Math.floor(level * 0.3);
+            this.damage = 50 + Math.floor(level * 0.5);
+        } else if (type === 4) { 
+            this.radius = 18;
+            this.color = '#e91e63';
+            this.speed = Math.random() * 0.4 + 0.9;
+            this.maxHealth = 16 + Math.floor(level * 1.6);
+            this.expValue = 7 + Math.floor(level * 0.25);
+            this.scoreValue = 7 + Math.floor(level * 0.4);
+            this.damage = 25 + Math.floor(level * 0.2);
+            this.dashTimer = 70;
+        } else if (type === 5) {
+            // NEW ENEMY: Plasma Pulsar (Stationary, anchors and fires projectile rings)
+            this.radius = 22;
+            this.color = '#ffeb3b';
+            this.speed = 0.4; // Moves slowly to get into range, then anchors
+            this.maxHealth = 24 + Math.floor(level * 2.0);
+            this.expValue = 10 + Math.floor(level * 0.3);
+            this.scoreValue = 10 + Math.floor(level * 0.5);
+            this.damage = 15 + Math.floor(level * 0.15);
+            this.shootCooldown = 140;
         } else {
             this.radius = 16;
             this.color = '#f44336';
@@ -672,6 +713,15 @@ class Enemy {
         ctx.fill();
         ctx.closePath();
 
+        // Unique aesthetic ring for Pulsars
+        if (this.type === 5) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 6, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 235, 59, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
         const barWidth = this.radius * 2;
         const barHeight = 4;
         ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
@@ -684,6 +734,12 @@ class Enemy {
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
 
+        // Apply global Chrono Flux slowdown mod
+        let currentSpeed = this.speed;
+        if (chronoFluxTimer > 0) {
+            currentSpeed *= 0.4;
+        }
+
         if (activeBoss) {
             const angleToBoss = Math.atan2(activeBoss.y - this.y, activeBoss.x - this.x);
             this.x += Math.cos(angleToBoss) * 4;
@@ -694,22 +750,56 @@ class Enemy {
         } else {
             if (this.type === 2) {
                 if (dist > 350) {
-                    this.x += Math.cos(angle) * this.speed;
-                    this.y += Math.sin(angle) * this.speed;
+                    this.x += Math.cos(angle) * currentSpeed;
+                    this.y += Math.sin(angle) * currentSpeed;
                 } else if (dist < 250) {
-                    this.x -= Math.cos(angle) * this.speed;
-                    this.y -= Math.sin(angle) * this.speed;
+                    this.x -= Math.cos(angle) * currentSpeed;
+                    this.y -= Math.sin(angle) * currentSpeed;
                 }
                 
-                if (this.shootCooldown > 0) this.shootCooldown--;
+                let attackCooldownDecrease = chronoFluxTimer > 0 ? 0.4 : 1;
+                if (this.shootCooldown > 0) this.shootCooldown -= attackCooldownDecrease;
                 if (this.shootCooldown <= 0 && dist < 500) {
                     const velocity = { x: Math.cos(angle) * 7, y: Math.sin(angle) * 7 };
                     enemyProjectiles.push(new EnemyProjectile(this.x, this.y, 5, '#ff9800', velocity, this.damage));
                     this.shootCooldown = 90;
                 }
+            } else if (this.type === 4) {
+                this.dashTimer--;
+                if (this.dashTimer <= 0) {
+                    let dashMult = chronoFluxTimer > 0 ? 3 : 8; // Reduce dash distance when slowed
+                    this.x += Math.cos(angle) * (currentSpeed * dashMult);
+                    this.y += Math.sin(angle) * (currentSpeed * dashMult);
+                    if (frames % 2 === 0) createExplosion(this.x, this.y, this.color, 1);
+                    if (this.dashTimer <= -12) { 
+                        this.dashTimer = 80 + Math.random() * 60;
+                    }
+                } else {
+                    this.x += Math.cos(angle) * currentSpeed;
+                    this.y += Math.sin(angle) * currentSpeed;
+                }
+            } else if (this.type === 5) {
+                // Pulsar positioning logic
+                if (dist > 450) {
+                    this.x += Math.cos(angle) * currentSpeed;
+                    this.y += Math.sin(angle) * currentSpeed;
+                }
+
+                let rate = chronoFluxTimer > 0 ? 0.5 : 1;
+                if (this.shootCooldown > 0) this.shootCooldown -= rate;
+                if (this.shootCooldown <= 0 && dist < 700) {
+                    playShootSound();
+                    // Fire an radial expander ring of 6 energy pulses
+                    for (let i = 0; i < 6; i++) {
+                        let bulletAngle = angle + (Math.PI * 2 / 6) * i;
+                        const velocity = { x: Math.cos(bulletAngle) * 5, y: Math.sin(bulletAngle) * 5 };
+                        enemyProjectiles.push(new EnemyProjectile(this.x, this.y, 6, '#ffeb3b', velocity, this.damage));
+                    }
+                    this.shootCooldown = 150;
+                }
             } else {
-                this.x += Math.cos(angle) * this.speed;
-                this.y += Math.sin(angle) * this.speed;
+                this.x += Math.cos(angle) * currentSpeed;
+                this.y += Math.sin(angle) * currentSpeed;
             }
         }
 
@@ -727,7 +817,6 @@ let distantEvents = [];
 let activeBoss = null;
 let activeSunBoss = null;
 let bossDefeatedThisLevel = false;
-
 let floatingTexts = [];
 
 class FloatingText {
@@ -790,6 +879,26 @@ const upgradesList = [
         desc: "Max HP +20 and fully heals.", 
         condition: () => true, 
         apply: () => { player.maxHealth += 20; player.health = player.maxHealth; player.takeDamage(0); } 
+    },
+    { 
+        name: "Aegis Shield", 
+        desc: "Permanently mitigates incoming damage by 15% (Cap: 60%).", 
+        condition: () => player.damageReduction < 0.60, 
+        apply: () => player.damageReduction += 0.15
+    },
+    {
+        // NEW UPGRADE: Chrono Flux
+        name: "Chrono Flux",
+        desc: "Grants a +15% chance to warp time and slow enemies down by 60% for 3s upon taking hit damage (Cap: 45%).",
+        condition: () => player.chronoFluxChance < 0.45,
+        apply: () => player.chronoFluxChance += 0.15
+    },
+    {
+        // NEW UPGRADE: Void Harvest
+        name: "Void Harvest",
+        desc: "+25% increase to cosmic experience gain factors.",
+        condition: () => player.expMultiplier < 2.5,
+        apply: () => player.expMultiplier += 0.25
     }
 ];
 
@@ -880,6 +989,7 @@ function init() {
     activeSunBoss = null;
     bossDefeatedThisLevel = false;
     screenShake = 0;
+    chronoFluxTimer = 0;
     score = 0;
     level = 1;
     exp = 0;
@@ -908,6 +1018,11 @@ function updateHUD() {
 }
 
 function addExperience(amount) {
+    // Apply Void Harvest multiplier adjustments
+    if (player && player.expMultiplier) {
+        amount = Math.round(amount * player.expMultiplier);
+    }
+
     if (amount > 0) {
         floatingTexts.push(new FloatingText(player.x, player.y - 40, `+${amount} XP`, '#00bcd4', 16));
     }
@@ -966,8 +1081,11 @@ function spawnEnemy() {
     let type = 0;
     const rand = Math.random();
     
-    if (level > 2 && rand < 0.25) type = 2;
-    else if (level > 4 && rand < 0.4) type = 1;
+    if (level > 8 && rand < 0.12) type = 5;       // Plasma Pulsar drops at lvl 9+
+    else if (level > 6 && rand < 0.24) type = 4;  
+    else if (level > 4 && rand < 0.42) type = 3;  
+    else if (level > 3 && rand < 0.62) type = 1;
+    else if (level > 2 && rand < 0.80) type = 2;
     
     enemies.push(new Enemy(x, y, type));
 }
@@ -1070,6 +1188,9 @@ function animate() {
     
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Countdown Chrono Flux effect timer
+    if (chronoFluxTimer > 0) chronoFluxTimer--;
 
     if (Math.random() < 0.003) {
         distantEvents.push(new DistantEvent(
@@ -1237,15 +1358,15 @@ function animate() {
         const distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
         if (distToPlayer - enemy.radius - player.radius < 0) {
             player.takeDamage(enemy.damage);
-            if (enemy.type !== 1) {
+            if (enemy.type !== 1 && enemy.type !== 5) {
                 createExplosion(enemy.x, enemy.y, enemy.color, 15);
                 enemies.splice(i, 1);
             } else {
                 enemy.health -= 10;
                 if (enemy.health <= 0) {
                     playEnemyDieSound(true);
-                    createExplosion(enemy.x, enemy.y, enemy.color, 30);
-                    applyScreenShake(12);
+                    createExplosion(enemy.x, enemy.y, enemy.color, enemy.type === 5 ? 40 : 30);
+                    applyScreenShake(enemy.type === 5 ? 15 : 12);
                     enemies.splice(i, 1);
                 }
             }
@@ -1263,9 +1384,11 @@ function animate() {
                 createExplosion(projectile.x, projectile.y, projectile.color, 4);
                 
                 if (enemy.health <= 0) {
-                    playEnemyDieSound(enemy.type === 1);
+                    playEnemyDieSound(enemy.type === 1 || enemy.type === 4 || enemy.type === 5);
                     createExplosion(enemy.x, enemy.y, enemy.color, enemy.type === 1 ? 30 : 15);
                     if (enemy.type === 1) applyScreenShake(10);
+                    else if (enemy.type === 5) applyScreenShake(14);
+                    else if (enemy.type === 4) applyScreenShake(7);
                     else applyScreenShake(3);
                     
                     enemies.splice(i, 1);
