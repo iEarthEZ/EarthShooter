@@ -83,3 +83,5 @@ Leveling up rolls 3 random upgrade options. Stack them strategically to build an
 + ADDED: Anti-overlap boss queue protocols (No more overlapping 2v1 boss encounters).
 + ADDED: Interactive Distant Space events (Supernovas, starbursts, rogue cosmic holes).
 - RESOLVED: The Infinite XP Cascade Loop (Massive level-up milestones now clear excess XP properly).
+
+*45% of the stuff is created/generated/produced by Google Gemini, other 55% is pure my creativity and hardwork squeezed with AI's help!
