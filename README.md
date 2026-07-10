@@ -1,0 +1,3 @@
+Ah, the ai left me with nothing but crumbs of a bread. NOW ITS MY JOB TO MAKE THE BREAD! Firstly i thought of a cool game idea where u play as planet earth and shoot down different stars and planets(blackholes included). So firstly i made the player movement smooth and not jarry. then i added background animations. Then i added 2 bosses, updates to help the player progress, more enemies, background cosmic events, sound effects for everything. Also WITH THE HELP OF AI i made the gun bullets square and more responsive. I DO NOT WANNA SPOIL A LOT JUST BY SCREENSHOTS YOU CAN FEEL FREE TO TEST THE GAME YOUR SELF AND PLEASE GIVE ME REVIEWS!!!!!!!!!
+
+ABOVE CHANGES ARE MADE AFTER THE AI VIBE CODED ME A BASE.
