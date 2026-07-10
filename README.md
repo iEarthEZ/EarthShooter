@@ -55,4 +55,4 @@ Every time you level up, you get a choice. Stack them to make ridiculous builds:
 
 Honestly, the best part. No `npm install`, no webpack, no local server required.
 
-Just goto [text](https://iearthez.github.io/EarthShooter/) And start playing!
+Just click [play](https://iearthez.github.io/EarthShooter/) And start playing!
