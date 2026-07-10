@@ -340,6 +340,8 @@ class Player {
         this.damageReduction = 0; 
         this.chronoFluxChance = 0; 
         this.expMultiplier = 1.0;  
+        this.pierce = 0; 
+        this.lifesteal = 0; 
     }
 
     draw() {
@@ -423,16 +425,20 @@ class Player {
                 floatingTexts.push(new FloatingText(this.x, this.y - 50, "CHRONO FLUX ACTIVE", '#00ffff', 18));
             }
         }
+        this.updateHealthUI();
+
+        if (this.health <= 0 && !isGameOver) {
+            triggerGameOver();
+        }
+    }
+
+    updateHealthUI() {
         const healthPercent = Math.max(0, (this.health / this.maxHealth) * 100);
         playerHealthBar.style.width = `${healthPercent}%`;
         
         if (healthPercent > 50) playerHealthBar.style.backgroundColor = '#4CAF50';
         else if (healthPercent > 20) playerHealthBar.style.backgroundColor = '#ffeb3b';
         else playerHealthBar.style.backgroundColor = '#f44336';
-
-        if (this.health <= 0 && !isGameOver) {
-            triggerGameOver();
-        }
     }
 }
 
@@ -446,6 +452,7 @@ class Projectile {
         this.velocity = velocity;
         this.damage = damage;
         this.distanceTraveled = 0;
+        this.piercedCount = 0; 
     }
 
     draw() {
@@ -646,65 +653,90 @@ class Enemy {
         this.x = x;
         this.y = y;
         this.type = type;
+        this.timeAlive = 0;
+        
+        const diff = Math.pow(1.015, level - 1);
         
         if (type === 1) {
             this.radius = 28;
             this.color = '#9c27b0';
-            this.speed = Math.random() * 0.8 + 0.6;
-            this.maxHealth = 20 + Math.floor(level * 2);
-            this.expValue = 5 + Math.floor(level * 0.2); 
-            this.scoreValue = 5 + Math.floor(level * 0.5);
-            this.damage = 40 + Math.floor(level * 0.2);
+            this.speed = Math.min((Math.random() * 0.8 + 0.6) + (level * 0.005), 3.0);
+            this.maxHealth = Math.floor((20 + (level * 2)) * diff);
+            this.expValue = Math.floor(5 + (level * 0.2)); 
+            this.scoreValue = Math.floor((5 + (level * 0.5)) * diff);
+            this.damage = Math.floor((40 + (level * 0.2)) * Math.sqrt(diff));
         } else if (type === 2) {
             this.radius = 14;
             this.color = '#00bcd4';
-            this.speed = Math.random() * 1.5 + 1.5;
-            this.maxHealth = 5 + Math.floor(level * 0.6);
-            this.expValue = 3 + Math.floor(level * 0.15);
-            this.scoreValue = 3 + Math.floor(level * 0.3);
-            this.damage = 10 + Math.floor(level * 0.1);
+            this.speed = Math.min((Math.random() * 1.5 + 1.5) + (level * 0.01), 4.5);
+            this.maxHealth = Math.floor((5 + (level * 0.6)) * diff);
+            this.expValue = Math.floor(3 + (level * 0.15));
+            this.scoreValue = Math.floor((3 + (level * 0.3)) * diff);
+            this.damage = Math.floor((10 + (level * 0.1)) * Math.sqrt(diff));
             this.shootCooldown = Math.floor(Math.random() * 60) + 60;
         } else if (type === 3) { 
             this.radius = 12;
             this.color = '#ff5722';
-            this.speed = Math.random() * 1.0 + 2.8; 
-            this.maxHealth = 2 + Math.floor(level * 0.4);
-            this.expValue = 4 + Math.floor(level * 0.15);
-            this.scoreValue = 4 + Math.floor(level * 0.3);
-            this.damage = 50 + Math.floor(level * 0.5);
+            this.speed = Math.min((Math.random() * 1.0 + 2.8) + (level * 0.015), 5.5); 
+            this.maxHealth = Math.floor((2 + (level * 0.4)) * diff);
+            this.expValue = Math.floor(4 + (level * 0.15));
+            this.scoreValue = Math.floor((4 + (level * 0.3)) * diff);
+            this.damage = Math.floor((50 + (level * 0.5)) * Math.sqrt(diff));
         } else if (type === 4) { 
             this.radius = 18;
             this.color = '#e91e63';
-            this.speed = Math.random() * 0.4 + 0.9;
-            this.maxHealth = 16 + Math.floor(level * 1.6);
-            this.expValue = 7 + Math.floor(level * 0.25);
-            this.scoreValue = 7 + Math.floor(level * 0.4);
-            this.damage = 25 + Math.floor(level * 0.2);
+            this.speed = Math.min((Math.random() * 0.4 + 0.9) + (level * 0.005), 2.5);
+            this.maxHealth = Math.floor((16 + (level * 1.6)) * diff);
+            this.expValue = Math.floor(7 + (level * 0.25));
+            this.scoreValue = Math.floor((7 + (level * 0.4)) * diff);
+            this.damage = Math.floor((25 + (level * 0.2)) * Math.sqrt(diff));
             this.dashTimer = 70;
         } else if (type === 5) {
             this.radius = 22;
             this.color = '#ffeb3b';
-            this.speed = 0.4; 
-            this.maxHealth = 24 + Math.floor(level * 2.0);
-            this.expValue = 10 + Math.floor(level * 0.3);
-            this.scoreValue = 10 + Math.floor(level * 0.5);
-            this.damage = 15 + Math.floor(level * 0.15);
+            this.speed = Math.min(0.4 + (level * 0.002), 1.5); 
+            this.maxHealth = Math.floor((24 + (level * 2.0)) * diff);
+            this.expValue = Math.floor(10 + (level * 0.3));
+            this.scoreValue = Math.floor((10 + (level * 0.5)) * diff);
+            this.damage = Math.floor((15 + (level * 0.15)) * Math.sqrt(diff));
             this.shootCooldown = 140;
+        } else if (type === 6) { 
+            this.radius = 15;
+            this.color = '#8bc34a';
+            this.speed = Math.min((Math.random() * 2.0 + 1.8) + (level * 0.01), 6.0);
+            this.maxHealth = Math.floor((6 + (level * 0.8)) * diff);
+            this.expValue = Math.floor(5 + (level * 0.2));
+            this.scoreValue = Math.floor((4 + (level * 0.3)) * diff);
+            this.damage = Math.floor((20 + (level * 0.2)) * Math.sqrt(diff));
+        } else if (type === 7) { 
+            this.radius = 35;
+            this.color = '#ffffff';
+            this.speed = Math.min(0.3 + (level * 0.001), 1.2);
+            this.maxHealth = Math.floor((80 + (level * 4.0)) * diff);
+            this.expValue = Math.floor(15 + (level * 0.4));
+            this.scoreValue = Math.floor((20 + (level * 0.6)) * diff);
+            this.damage = Math.floor((80 + (level * 0.5)) * Math.sqrt(diff));
         } else {
-            // Starting basic red enemy: high spawn presence, low burden
             this.radius = 16;
             this.color = '#f44336';
-            this.speed = Math.random() * 1.4 + 1.1;
-            this.maxHealth = 3 + Math.floor(level * 0.8);
-            this.expValue = 2 + Math.floor(level * 0.1);
-            this.scoreValue = 1 + Math.floor(level * 0.2);
-            this.damage = 15 + Math.floor(level * 0.1);
+            this.speed = Math.min((Math.random() * 1.4 + 1.1) + (level * 0.01), 4.0);
+            this.maxHealth = Math.floor((3 + (level * 0.8)) * diff);
+            this.expValue = Math.floor(2 + (level * 0.1));
+            this.scoreValue = Math.floor((1 + (level * 0.2)) * diff);
+            this.damage = Math.floor((15 + (level * 0.1)) * Math.sqrt(diff));
         }
         
         this.health = this.maxHealth;
     }
 
     draw() {
+        ctx.save();
+        
+        if (this.type === 6) {
+            const alpha = Math.abs(Math.sin(this.timeAlive * 0.05)) * 0.7 + 0.1;
+            ctx.globalAlpha = alpha;
+        }
+
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
         ctx.fillStyle = this.color;
@@ -717,17 +749,27 @@ class Enemy {
             ctx.strokeStyle = 'rgba(255, 235, 59, 0.4)';
             ctx.lineWidth = 2;
             ctx.stroke();
+        } else if (this.type === 7) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius - 5, 0, Math.PI * 2);
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.stroke();
         }
 
-        const barWidth = this.radius * 2;
-        const barHeight = 4;
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 10, barWidth, barHeight);
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 10, barWidth * (this.health / this.maxHealth), barHeight);
+        if (this.type !== 6) {
+            const barWidth = this.radius * 2;
+            const barHeight = 4;
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 10, barWidth, barHeight);
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 10, barWidth * (this.health / this.maxHealth), barHeight);
+        }
+        ctx.restore();
     }
 
     update() {
+        this.timeAlive++;
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
 
@@ -891,6 +933,18 @@ const upgradesList = [
         desc: "+25% increase to cosmic experience gain factors.",
         condition: () => player.expMultiplier < 2.5,
         apply: () => player.expMultiplier += 0.25
+    },
+    {
+        name: "Piercing Rounds",
+        desc: "Projectiles pierce through 1 additional enemy before breaking (Cap: 5).",
+        condition: () => player.pierce < 5,
+        apply: () => player.pierce += 1
+    },
+    {
+        name: "Vampiric Strike",
+        desc: "Adds a 5% chance to repair 2 HP whenever you destroy an enemy (Cap: 25%).",
+        condition: () => player.lifesteal < 0.25,
+        apply: () => player.lifesteal += 0.05
     }
 ];
 
@@ -1019,11 +1073,11 @@ function addExperience(amount) {
     }
     
     exp += amount;
-    if (exp >= expToNextLevel) {
+    
+    while (exp >= expToNextLevel) {
         exp -= expToNextLevel;
         level++;
-        // Level curve formula softened down to make pulling items/upgrades friendlier
-        expToNextLevel = 10 + (level * 8); 
+        expToNextLevel = Math.floor(10 + (level * 12) + (Math.pow(level, 2) * 0.4)); 
         bossDefeatedThisLevel = false;
         triggerLevelUp();
     }
@@ -1070,20 +1124,19 @@ function spawnEnemy() {
     const x = player.x + Math.cos(angle) * spawnRadius;
     const y = player.y + Math.sin(angle) * spawnRadius;
     
-    // Balanced Weighted Random Pool Setup:
-    // Ensures basic reds are constantly mixed in with newer challenges, preventing uniform floods.
-    let possibleTypes = [0]; // Starting Red Grunts always exist in the mix
+    let possibleTypes = [0]; 
     
-    if (level > 2) possibleTypes.push(2); // Cyan Ranged
-    if (level > 4) possibleTypes.push(3); // Orange Swarmers
-    if (level > 6) possibleTypes.push(4); // Pink Dashers
-    if (level > 8) possibleTypes.push(5); // Yellow Pulsars
+    if (level > 2) possibleTypes.push(2); 
+    if (level > 4) possibleTypes.push(3); 
+    if (level > 6) possibleTypes.push(4); 
+    if (level > 8) possibleTypes.push(5); 
+    if (level > 12) possibleTypes.push(6);
+    if (level > 18) possibleTypes.push(7); 
 
     let chosenType = possibleTypes[Math.floor(Math.random() * possibleTypes.length)];
 
-    // 50% spawn rate dampener for shooting types to preserve player visibility
     if ((chosenType === 2 || chosenType === 5) && Math.random() > 0.50) {
-        chosenType = 0; // Fallback to basic red instead of generating bullet-hell layers
+        chosenType = 0; 
     }
 
     enemies.push(new Enemy(x, y, chosenType));
@@ -1225,7 +1278,7 @@ function animate() {
     drawInfiniteGrid(cameraX, cameraY);
 
     if (!bossDefeatedThisLevel) {
-        if (level % 15 === 0 && !activeSunBoss) {
+        if (level % 15 === 0 && !activeSunBoss && !activeBoss) {
             activeSunBoss = new SunBoss(player.x, player.y - 600);
         } else if (level % 7 === 0 && !activeBoss && !activeSunBoss && (level % 15 !== 0)) {
             activeBoss = new Boss(player.x, player.y - 600);
@@ -1325,7 +1378,10 @@ function animate() {
         }
 
         if (hit) {
-            projectiles.splice(i, 1);
+            p.piercedCount++;
+            if (p.piercedCount > player.pierce) {
+                projectiles.splice(i, 1);
+            }
             continue;
         }
 
@@ -1356,15 +1412,15 @@ function animate() {
         const distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
         if (distToPlayer - enemy.radius - player.radius < 0) {
             player.takeDamage(enemy.damage);
-            if (enemy.type !== 1 && enemy.type !== 5) {
+            if (enemy.type !== 1 && enemy.type !== 5 && enemy.type !== 7) {
                 createExplosion(enemy.x, enemy.y, enemy.color, 15);
                 enemies.splice(i, 1);
             } else {
                 enemy.health -= 10;
                 if (enemy.health <= 0) {
                     playEnemyDieSound(true);
-                    createExplosion(enemy.x, enemy.y, enemy.color, enemy.type === 5 ? 40 : 30);
-                    applyScreenShake(enemy.type === 5 ? 15 : 12);
+                    createExplosion(enemy.x, enemy.y, enemy.color, enemy.type === 7 ? 60 : (enemy.type === 5 ? 40 : 30));
+                    applyScreenShake(enemy.type === 7 ? 20 : (enemy.type === 5 ? 15 : 12));
                     enemies.splice(i, 1);
                 }
             }
@@ -1376,15 +1432,22 @@ function animate() {
             const distToProj = Math.hypot(projectile.x - enemy.x, projectile.y - enemy.y);
             
             if (distToProj - enemy.radius - projectile.radius < 0) {
-                projectiles.splice(j, 1);
+                
                 enemy.health -= projectile.damage;
                 floatingTexts.push(new FloatingText(projectile.x, projectile.y, projectile.damage, '#ffffff', 16));
                 createExplosion(projectile.x, projectile.y, projectile.color, 4);
+
+                projectile.piercedCount++;
+                if (projectile.piercedCount > player.pierce) {
+                    projectiles.splice(j, 1);
+                }
                 
                 if (enemy.health <= 0) {
-                    playEnemyDieSound(enemy.type === 1 || enemy.type === 4 || enemy.type === 5);
-                    createExplosion(enemy.x, enemy.y, enemy.color, enemy.type === 1 ? 30 : 15);
-                    if (enemy.type === 1) applyScreenShake(10);
+                    playEnemyDieSound(enemy.type === 1 || enemy.type === 4 || enemy.type === 5 || enemy.type === 7);
+                    createExplosion(enemy.x, enemy.y, enemy.color, enemy.type === 7 ? 60 : (enemy.type === 1 ? 30 : 15));
+                    
+                    if (enemy.type === 7) applyScreenShake(20);
+                    else if (enemy.type === 1) applyScreenShake(10);
                     else if (enemy.type === 5) applyScreenShake(14);
                     else if (enemy.type === 4) applyScreenShake(7);
                     else applyScreenShake(3);
@@ -1392,6 +1455,12 @@ function animate() {
                     enemies.splice(i, 1);
                     score += enemy.scoreValue;
                     addExperience(enemy.expValue); 
+
+                    if (player.lifesteal > 0 && Math.random() < player.lifesteal && player.health < player.maxHealth) {
+                        player.health = Math.min(player.maxHealth, player.health + 2);
+                        floatingTexts.push(new FloatingText(player.x, player.y - 40, "+2 HP", "#4CAF50", 18));
+                        player.updateHealthUI();
+                    }
                 }
                 break;
             }
