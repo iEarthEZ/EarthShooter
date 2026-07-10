@@ -34,7 +34,7 @@ let isPaused = false;
 let stars = [];
 let audioCtx = null;
 let screenShake = 0;
-let chronoFluxTimer = 0; // Global tracking for Chrono Flux slow effect
+let chronoFluxTimer = 0; 
 
 const keys = { w: false, a: false, s: false, d: false };
 const mouse = { x: canvas.width / 2, y: canvas.height / 2, isDown: false, worldX: 0, worldY: 0 };
@@ -327,7 +327,7 @@ class Player {
         this.vy = 0;
         this.acceleration = 0.9;
         this.friction = 0.82;
-        this.maxSpeed = 6;
+        this.maxSpeed = 6.8; 
         this.radius = 15;
         this.color = '#4CAF50';
         this.maxHealth = 100;
@@ -338,8 +338,8 @@ class Player {
         this.projectileDamage = 1;
         this.spreadCount = 1;
         this.damageReduction = 0; 
-        this.chronoFluxChance = 0; // Property for Chrono Flux upgrade
-        this.expMultiplier = 1.0;  // Property for Void Harvest upgrade
+        this.chronoFluxChance = 0; 
+        this.expMultiplier = 1.0;  
     }
 
     draw() {
@@ -418,9 +418,8 @@ class Player {
             applyScreenShake(amount > 4 ? 12 : 5);
             for(let i = 0; i < 5; i++) particles.push(new Particle(this.x, this.y, this.color));
 
-            // Trigger Chrono Flux if chance check passes
             if (this.chronoFluxChance > 0 && Math.random() < this.chronoFluxChance) {
-                chronoFluxTimer = 180; // Slow down enemies for 3 seconds (180 frames)
+                chronoFluxTimer = 180; 
                 floatingTexts.push(new FloatingText(this.x, this.y - 50, "CHRONO FLUX ACTIVE", '#00ffff', 18));
             }
         }
@@ -537,7 +536,6 @@ class SunBoss {
     }
 
     update() {
-        // Bosses remain unaffected by player space slowing fields
         this.spinTimer--;
         if (this.spinTimer <= 0) {
             this.spinSpeed = (Math.random() - 0.5) * 0.04; 
@@ -684,23 +682,23 @@ class Enemy {
             this.damage = 25 + Math.floor(level * 0.2);
             this.dashTimer = 70;
         } else if (type === 5) {
-            // NEW ENEMY: Plasma Pulsar (Stationary, anchors and fires projectile rings)
             this.radius = 22;
             this.color = '#ffeb3b';
-            this.speed = 0.4; // Moves slowly to get into range, then anchors
+            this.speed = 0.4; 
             this.maxHealth = 24 + Math.floor(level * 2.0);
             this.expValue = 10 + Math.floor(level * 0.3);
             this.scoreValue = 10 + Math.floor(level * 0.5);
             this.damage = 15 + Math.floor(level * 0.15);
             this.shootCooldown = 140;
         } else {
+            // Starting basic red enemy: high spawn presence, low burden
             this.radius = 16;
             this.color = '#f44336';
-            this.speed = Math.random() * 1.5 + 1.2;
-            this.maxHealth = 3 + Math.floor(level * 1);
-            this.expValue = 1 + Math.floor(level * 0.1);
+            this.speed = Math.random() * 1.4 + 1.1;
+            this.maxHealth = 3 + Math.floor(level * 0.8);
+            this.expValue = 2 + Math.floor(level * 0.1);
             this.scoreValue = 1 + Math.floor(level * 0.2);
-            this.damage = 20 + Math.floor(level * 0.1);
+            this.damage = 15 + Math.floor(level * 0.1);
         }
         
         this.health = this.maxHealth;
@@ -713,7 +711,6 @@ class Enemy {
         ctx.fill();
         ctx.closePath();
 
-        // Unique aesthetic ring for Pulsars
         if (this.type === 5) {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius + 6, 0, Math.PI * 2);
@@ -734,7 +731,6 @@ class Enemy {
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
 
-        // Apply global Chrono Flux slowdown mod
         let currentSpeed = this.speed;
         if (chronoFluxTimer > 0) {
             currentSpeed *= 0.4;
@@ -767,7 +763,7 @@ class Enemy {
             } else if (this.type === 4) {
                 this.dashTimer--;
                 if (this.dashTimer <= 0) {
-                    let dashMult = chronoFluxTimer > 0 ? 3 : 8; // Reduce dash distance when slowed
+                    let dashMult = chronoFluxTimer > 0 ? 3 : 8; 
                     this.x += Math.cos(angle) * (currentSpeed * dashMult);
                     this.y += Math.sin(angle) * (currentSpeed * dashMult);
                     if (frames % 2 === 0) createExplosion(this.x, this.y, this.color, 1);
@@ -779,7 +775,6 @@ class Enemy {
                     this.y += Math.sin(angle) * currentSpeed;
                 }
             } else if (this.type === 5) {
-                // Pulsar positioning logic
                 if (dist > 450) {
                     this.x += Math.cos(angle) * currentSpeed;
                     this.y += Math.sin(angle) * currentSpeed;
@@ -789,7 +784,6 @@ class Enemy {
                 if (this.shootCooldown > 0) this.shootCooldown -= rate;
                 if (this.shootCooldown <= 0 && dist < 700) {
                     playShootSound();
-                    // Fire an radial expander ring of 6 energy pulses
                     for (let i = 0; i < 6; i++) {
                         let bulletAngle = angle + (Math.PI * 2 / 6) * i;
                         const velocity = { x: Math.cos(bulletAngle) * 5, y: Math.sin(bulletAngle) * 5 };
@@ -887,14 +881,12 @@ const upgradesList = [
         apply: () => player.damageReduction += 0.15
     },
     {
-        // NEW UPGRADE: Chrono Flux
         name: "Chrono Flux",
         desc: "Grants a +15% chance to warp time and slow enemies down by 60% for 3s upon taking hit damage (Cap: 45%).",
         condition: () => player.chronoFluxChance < 0.45,
         apply: () => player.chronoFluxChance += 0.15
     },
     {
-        // NEW UPGRADE: Void Harvest
         name: "Void Harvest",
         desc: "+25% increase to cosmic experience gain factors.",
         condition: () => player.expMultiplier < 2.5,
@@ -993,7 +985,7 @@ function init() {
     score = 0;
     level = 1;
     exp = 0;
-    expToNextLevel = 10;
+    expToNextLevel = 10; 
     frames = 0;
     isGameOver = false;
     isPaused = false;
@@ -1018,7 +1010,6 @@ function updateHUD() {
 }
 
 function addExperience(amount) {
-    // Apply Void Harvest multiplier adjustments
     if (player && player.expMultiplier) {
         amount = Math.round(amount * player.expMultiplier);
     }
@@ -1031,7 +1022,8 @@ function addExperience(amount) {
     if (exp >= expToNextLevel) {
         exp -= expToNextLevel;
         level++;
-        expToNextLevel = 10 + (level * 15); 
+        // Level curve formula softened down to make pulling items/upgrades friendlier
+        expToNextLevel = 10 + (level * 8); 
         bossDefeatedThisLevel = false;
         triggerLevelUp();
     }
@@ -1078,16 +1070,23 @@ function spawnEnemy() {
     const x = player.x + Math.cos(angle) * spawnRadius;
     const y = player.y + Math.sin(angle) * spawnRadius;
     
-    let type = 0;
-    const rand = Math.random();
+    // Balanced Weighted Random Pool Setup:
+    // Ensures basic reds are constantly mixed in with newer challenges, preventing uniform floods.
+    let possibleTypes = [0]; // Starting Red Grunts always exist in the mix
     
-    if (level > 8 && rand < 0.12) type = 5;       // Plasma Pulsar drops at lvl 9+
-    else if (level > 6 && rand < 0.24) type = 4;  
-    else if (level > 4 && rand < 0.42) type = 3;  
-    else if (level > 3 && rand < 0.62) type = 1;
-    else if (level > 2 && rand < 0.80) type = 2;
-    
-    enemies.push(new Enemy(x, y, type));
+    if (level > 2) possibleTypes.push(2); // Cyan Ranged
+    if (level > 4) possibleTypes.push(3); // Orange Swarmers
+    if (level > 6) possibleTypes.push(4); // Pink Dashers
+    if (level > 8) possibleTypes.push(5); // Yellow Pulsars
+
+    let chosenType = possibleTypes[Math.floor(Math.random() * possibleTypes.length)];
+
+    // 50% spawn rate dampener for shooting types to preserve player visibility
+    if ((chosenType === 2 || chosenType === 5) && Math.random() > 0.50) {
+        chosenType = 0; // Fallback to basic red instead of generating bullet-hell layers
+    }
+
+    enemies.push(new Enemy(x, y, chosenType));
 }
 
 function drawInfiniteGrid(cameraX, cameraY) {
@@ -1189,7 +1188,6 @@ function animate() {
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Countdown Chrono Flux effect timer
     if (chronoFluxTimer > 0) chronoFluxTimer--;
 
     if (Math.random() < 0.003) {
